@@ -1,0 +1,217 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define FILE_NAME "requests.txt"
+#define MAX_REQUESTS 100
+
+// Structure to store Request Data
+typedef struct {
+    int id;
+    char name[50];
+    char roll_no[20];
+    char req_type[30];
+    char details[100];
+    char status[20];    // Pending, Approved, Rejected, Scheduled
+    char time_slot[30]; // e.g., "02:30 PM" or "N/A"
+} Request;
+
+Request requests[MAX_REQUESTS];
+int requestCount = 0;
+
+// Function Declarations
+void loadData();
+void saveData();
+void studentPanel();
+void checkStatus();
+void directorPanel();
+void accountantPanel();
+
+int main() {
+    loadData();
+    int choice;
+
+    while (1) {
+        printf("\n=========================================\n");
+        printf("    CAMPUS FLOW - Digital Approval System\n");
+        printf("=========================================\n");
+        printf("1. Student Panel (Submit Request)\n");
+        printf("2. Check Application Status\n");
+        printf("3. Director Panel (Approve / Schedule)\n");
+        printf("4. Accountant Panel (View Approved Requests)\n");
+        printf("5. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+        getchar(); // consume newline
+
+        switch (choice) {
+            case 1: studentPanel(); break;
+            case 2: checkStatus(); break;
+            case 3: directorPanel(); break;
+            case 4: accountantPanel(); break;
+            case 5: 
+                saveData();
+                printf("\nExiting Campus Flow. Data Saved Successfully!\n");
+                exit(0);
+            default: printf("Invalid choice! Try again.\n");
+        }
+    }
+    return 0;
+}
+
+// Load data from file on startup
+void loadData() {
+    FILE *fp = fopen(FILE_NAME, "rb");
+    if (fp == NULL) {
+        requestCount = 0;
+        return;
+    }
+    fread(&requestCount, sizeof(int), 1, fp);
+    fread(requests, sizeof(Request), requestCount, fp);
+    fclose(fp);
+}
+
+// Save data to file
+void saveData() {
+    FILE *fp = fopen(FILE_NAME, "wb");
+    if (fp == NULL) {
+        printf("Error saving data!\n");
+        return;
+    }
+    fwrite(&requestCount, sizeof(int), 1, fp);
+    fwrite(requests, sizeof(Request), requestCount, fp);
+    fclose(fp);
+}
+
+// 1. Student Panel
+void studentPanel() {
+    if (requestCount >= MAX_REQUESTS) {
+        printf("System full! Cannot take more requests.\n");
+        return;
+    }
+
+    Request req;
+    req.id = 1001 + requestCount;
+
+    printf("\n--- STUDENT REQUEST FORM ---\n");
+    printf("Generated Application ID: %d\n", req.id);
+    
+    printf("Enter Your Name: ");
+    fgets(req.name, sizeof(req.name), stdin);
+    req.name[strcspn(req.name, "\n")] = 0;
+
+    printf("Enter Roll Number / ID: ");
+    fgets(req.roll_no, sizeof(req.roll_no), stdin);
+    req.roll_no[strcspn(req.roll_no, "\n")] = 0;
+
+    printf("Enter Request Type (e.g. Course Change / Leave / Fee): ");
+    fgets(req.req_type, sizeof(req.req_type), stdin);
+    req.req_type[strcspn(req.req_type, "\n")] = 0;
+
+    printf("Enter Reason / Details: ");
+    fgets(req.details, sizeof(req.details), stdin);
+    req.details[strcspn(req.details, "\n")] = 0;
+
+    strcpy(req.status, "Pending");
+    strcpy(req.time_slot, "N/A");
+
+    requests[requestCount++] = req;
+    saveData();
+
+    printf("\n✅ Application Submitted Successfully! Keep ID %d for status tracking.\n", req.id);
+}
+
+// 2. Check Status
+void checkStatus() {
+    int id, found = 0;
+    printf("\nEnter Application ID to Check Status: ");
+    scanf("%d", &id);
+
+    for (int i = 0; i < requestCount; i++) {
+        if (requests[i].id == id) {
+            found = 1;
+            printf("\n--- APPLICATION STATUS ---\n");
+            printf("ID          : %d\n", requests[i].id);
+            printf("Name        : %s (%s)\n", requests[i].name, requests[i].roll_no);
+            printf("Request Type: %s\n", requests[i].req_type);
+            printf("Status      : %s\n", requests[i].status);
+            if (strcmp(requests[i].status, "Scheduled") == 0) {
+                printf("Meeting Time: %s (Meet Director Sir in Cabin)\n", requests[i].time_slot);
+            }
+            break;
+        }
+    }
+    if (!found) printf("❌ Application ID not found!\n");
+}
+
+// 3. Director Panel
+void directorPanel() {
+    printf("\n--- DIRECTOR DASHBOARD ---\n");
+    int pendingCount = 0;
+
+    for (int i = 0; i < requestCount; i++) {
+        if (strcmp(requests[i].status, "Pending") == 0) {
+            pendingCount++;
+            printf("\n-----------------------------------------\n");
+            printf("[%d] App ID: %d | Student: %s (%s)\n", i + 1, requests[i].id, requests[i].name, requests[i].roll_no);
+            printf("Type  : %s\n", requests[i].req_type);
+            printf("Detail: %s\n", requests[i].details);
+        }
+    }
+
+    if (pendingCount == 0) {
+        printf("No pending requests right now.\n");
+        return;
+    }
+
+    int app_id, action;
+    printf("\nEnter Application ID to process: ");
+    scanf("%d", &app_id);
+
+    for (int i = 0; i < requestCount; i++) {
+        if (requests[i].id == app_id) {
+            printf("\nSelect Action for ID %d:\n", app_id);
+            printf("1. Approve\n");
+            printf("2. Reject\n");
+            printf("3. Schedule Meeting Time\n");
+            printf("Choice: ");
+            scanf("%d", &action);
+            getchar();
+
+            if (action == 1) {
+                strcpy(requests[i].status, "Approved");
+                printf("🎉 Request #%d Approved!\n", app_id);
+            } else if (action == 2) {
+                strcpy(requests[i].status, "Rejected");
+                printf("❌ Request #%d Rejected!\n", app_id);
+            } else if (action == 3) {
+                strcpy(requests[i].status, "Scheduled");
+                printf("Enter Meeting Time Slot (e.g. 02:30 PM Today): ");
+                fgets(requests[i].time_slot, sizeof(requests[i].time_slot), stdin);
+                requests[i].time_slot[strcspn(requests[i].time_slot, "\n")] = 0;
+                printf("🕒 Meeting Scheduled at %s!\n", requests[i].time_slot);
+            }
+            saveData();
+            return;
+        }
+    }
+    printf("Application ID not found!\n");
+}
+
+// 4. Accountant Panel
+void accountantPanel() {
+    printf("\n--- ACCOUNTANT ACTION QUEUE (Approved Applications) ---\n");
+    int approvedCount = 0;
+
+    for (int i = 0; i < requestCount; i++) {
+        if (strcmp(requests[i].status, "Approved") == 0) {
+            approvedCount++;
+            printf("\n✅ App ID: %d | Student: %s (%s) | Action: Process %s\n", 
+                   requests[i].id, requests[i].name, requests[i].roll_no, requests[i].req_type);
+        }
+    }
+
+    if (approvedCount == 0) {
+        printf("No approved requests waiting for execution.\n");
+    }
+}
